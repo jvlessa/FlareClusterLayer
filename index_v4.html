@@ -247,6 +247,8 @@
             "esri/renderers/ClassBreaksRenderer",
             "esri/core/watchUtils",
             "esri/geometry/support/webMercatorUtils",
+            "esri/tasks/QueryTask",
+            "esri/tasks/support/Query",
             "fcl/FlareClusterLayer_v4",
             "dojo",
             "dojo/ready",
@@ -257,7 +259,7 @@
             "dojo/dom-class",
             "dojo/text!./data.json"],
             function (Map, Color, MapView, SceneView, Extent, SpatialReference, Point, PopupTemplate, GraphicsLayer, Graphic, SimpleMarkerSymbol, SimpleLineSymbol, SimpleFillSymbol, TextSymbol, TextSymbol3DLayer, Font, ClassBreaksRenderer,
-                watchUtils, webMercatorUtils, fcl, dojo, ready, JSON, dom, on, domAttr, domClass, data) {
+                watchUtils, webMercatorUtils, QueryTask, Query, fcl, dojo, ready, JSON, dom, on, domAttr, domClass, data) {
 
                 ready(function () {
 
@@ -270,7 +272,7 @@
                     mapView = new MapView({
                         map: map,
                         container: "views",
-                        center: [133, -25],
+                        center: [-58.792374, -11.062246],
                         zoom: 4,
                         constraints: { minZoom: 3 },
                         ui: { components: ["compass", "zoom"] }
@@ -292,17 +294,47 @@
                     sceneView.ui.move("compass", "bottom-right");
 
                     //load up the dummy data
-                    var allData = JSON.parse(data);
-
-                    mapView.when(function (e) {
-                        console.log('map view loaded');
-                        if (activeView === mapView) {
-                            initLayer(allData);
-                        }
-                    }, function (err) {
-                        console.error("failed to load MapView " + e);
+                    //var allData = JSON.parse(data);
+                    var allData = [];
+                    
+                    var queryTask = new QueryTask({
+                        url: "https://services.arcgis.com/qFQYQQeTXZSPY7Fs/arcgis/rest/services/Empresas_b2b/FeatureServer/0"
                     });
 
+                    var query = new Query();
+                    query.outFields = ["*"];
+                    query.where = "1=1";
+
+                    // When resolved, returns features and graphics that satisfy the query.
+                    queryTask.execute(query).then(function(results){
+                        var features = results.features;
+                        for (var i = 0; i < features.length; i++){
+                            
+                            var attribute = features[i].attributes;
+
+                            var obj = {
+                                "toiletId": attribute.OBJECTID,
+                                "name": attribute.ENDR_NR,
+                                "postcode": attribute.CEP_NR,
+                                "facilityType": attribute.MUNC,
+                                "isOpen": attribute.SETOR,
+                                "x": attribute.GEO_X,
+                                "y": attribute.GEO_Y
+                            };
+
+
+                            allData.push(obj);
+                        }
+
+                        mapView.when(function (e) {
+                            console.log('map view loaded');
+                            if (activeView === mapView) {
+                                initLayer(allData);
+                            }
+                        }, function (err) {
+                            console.error("failed to load MapView " + e);
+                        });
+                    });
                 });
 
                 function initLayer(data) {
